@@ -1,0 +1,44 @@
+{
+  "name": "stocktracker",
+  "version": "1.0.0",
+  "description": "Track stock portfolios: search any security, build portfolios, view key metrics and allocation.",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx watch server/index.ts",
+    "dev:web": "vite",
+    "demo": "DATA_SOURCE=demo npm run dev",
+    "build": "tsc --noEmit && vite build",
+    "start": "NODE_ENV=production tsx server/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rasmus1248/stocktracker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Rasmus1248/stocktracker/issues"
+  },
+  "homepage": "https://github.com/Rasmus1248/stocktracker#readme",
+  "dependencies": {
+    "express": "^5.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "recharts": "^3.10.1",
+    "yahoo-finance2": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "concurrently": "^10.0.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.7",
+    "vitest": "^3.2.7"
+  },
+  "private": true,
+  "type": "module"
+}
