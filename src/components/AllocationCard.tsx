@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import type { FundHoldings } from "../../shared/types.ts";
-import { money, pct } from "../lib/format.ts";
-import { allocation, isFund, type Position, type Slice } from "../lib/portfolio.ts";
+import type { FundHoldings } from "../../shared/types";
+import { money, pct } from "../lib/format";
+import { allocation, isFund, type Position, type Slice } from "../lib/portfolio";
 
 // Categorical palette: fixed order, never cycled. Anything past slot 7 folds into "Other".
 const SLOTS = 7;

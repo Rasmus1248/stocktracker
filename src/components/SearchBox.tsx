@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import type { SearchResult } from "../../shared/types.ts";
-import { api } from "../lib/api.ts";
-import { TYPE_LABEL } from "../lib/format.ts";
+import type { SearchResult } from "../../shared/types";
+import { api } from "../lib/api";
+import { TYPE_LABEL } from "../lib/format";
 
 interface Props {
   onSelect: (r: SearchResult) => void;

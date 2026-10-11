@@ -1,4 +1,4 @@
-import type { FundHoldings, Quote, ScreenerList, SearchResult } from "../../shared/types.ts";
+import type { FundHoldings, Quote, ScreenerList, SearchResult } from "../../shared/types.js";
 
 export const SCREENERS = {
   most_actives: "Most active",

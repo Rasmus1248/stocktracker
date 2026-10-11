@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { compact, money, num, pct, signedMoney, TYPE_LABEL, trend } from "../lib/format.ts";
-import type { Holding, Position } from "../lib/portfolio.ts";
-import { RangeBar } from "./MetricsGrid.tsx";
+import { compact, money, num, pct, signedMoney, TYPE_LABEL, trend } from "../lib/format";
+import type { Holding, Position } from "../lib/portfolio";
+import { RangeBar } from "./MetricsGrid";
 
 type SortKey = "symbol" | "value" | "weight" | "day" | "gain" | "pe" | "cap" | "div";
 

@@ -192,3 +192,19 @@ tr.clickable:hover td { background: var(--surface-2); }
   .metrics .wide { grid-column: auto; }
   .table-wrap { margin: 0 -16px; padding: 0 16px; }
 }
+
+/* Sync */
+.row.between { justify-content: space-between; }
+.grow { flex: 1; min-width: 0; }
+.dialog-body { display: flex; flex-direction: column; gap: 16px; }
+.dialog-body h3 { margin: 0 0 4px; }
+.dialog-body p { margin: 0 0 8px; }
+.sync-status { display: inline-flex; align-items: center; gap: 6px; }
+.sync-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.sync-status.synced .dot { background: var(--up); }
+.sync-status.saving .dot, .sync-status.connecting .dot { background: var(--accent); }
+.sync-status.offline .dot { background: var(--down); }
+.code-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; background: var(--surface-2); border-radius: 8px; }
+.code-box code { flex: 1; font-size: 15px; letter-spacing: 0.04em; user-select: all; min-width: 200px; }
+.notice { max-width: 1280px; margin: 12px auto 0; padding: 8px 12px; border-radius: 8px; background: var(--surface-2); width: calc(100% - 48px); }
+.dialog form.row { flex-direction: row; gap: 8px; }

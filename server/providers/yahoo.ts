@@ -1,6 +1,6 @@
 import YahooFinance from "yahoo-finance2";
-import type { FundHoldings, Quote, QuoteType, ScreenerList, SearchResult } from "../../shared/types.ts";
-import { SCREENERS, type DataProvider, type ScreenerId } from "./provider.ts";
+import type { FundHoldings, Quote, QuoteType, ScreenerList, SearchResult } from "../../shared/types.js";
+import { SCREENERS, type DataProvider, type ScreenerId } from "./provider.js";
 
 const KNOWN_TYPES: QuoteType[] = ["EQUITY", "ETF", "MUTUALFUND", "INDEX", "CRYPTOCURRENCY", "CURRENCY", "FUTURE"];
 const toType = (t: unknown): QuoteType => (KNOWN_TYPES.includes(t as QuoteType) ? (t as QuoteType) : "OTHER");

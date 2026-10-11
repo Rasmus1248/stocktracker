@@ -1,9 +1,9 @@
-import type { Quote, SearchResult } from "../../shared/types.ts";
-import { api } from "../lib/api.ts";
-import { money, pct, TYPE_LABEL, trend } from "../lib/format.ts";
-import { isFund } from "../lib/portfolio.ts";
-import { useAsync } from "../lib/useAsync.ts";
-import { MetricsGrid } from "./MetricsGrid.tsx";
+import type { Quote, SearchResult } from "../../shared/types";
+import { api } from "../lib/api";
+import { money, pct, TYPE_LABEL, trend } from "../lib/format";
+import { isFund } from "../lib/portfolio";
+import { useAsync } from "../lib/useAsync";
+import { MetricsGrid } from "./MetricsGrid";
 
 export function PriceLine({ q }: { q: Quote }) {
   return (

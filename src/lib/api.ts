@@ -1,9 +1,13 @@
-import type { FundHoldings, Meta, Quote, ScreenerList, SearchResult } from "../../shared/types.ts";
+import type { FundHoldings, Meta, Quote, ScreenerList, SearchResult } from "../../shared/types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.error ?? `Request failed (${res.status})`);
+  if (!res.ok) {
+    // A non-JSON 404 means the request never reached our API (e.g. only the static frontend was deployed).
+    if (!body) throw new Error(`the data API isn't reachable at /api (HTTP ${res.status}). Check that the server is deployed — see the README.`);
+    throw new Error(body.error ?? `Request failed (${res.status})`);
+  }
   return body as T;
 }
 

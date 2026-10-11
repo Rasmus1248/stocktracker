@@ -1,12 +1,12 @@
 import { useMemo } from "react";
-import type { FundHoldings, Quote, SearchResult } from "../../shared/types.ts";
-import { api } from "../lib/api.ts";
-import { isFund, normalizeCurrency, summarize, type Holding } from "../lib/portfolio.ts";
-import type { usePortfolios } from "../lib/usePortfolios.ts";
-import { useAsync } from "../lib/useAsync.ts";
-import { AllocationCard } from "./AllocationCard.tsx";
-import { HoldingsTable } from "./HoldingsTable.tsx";
-import { SummaryTiles } from "./SummaryTiles.tsx";
+import type { FundHoldings, Quote, SearchResult } from "../../shared/types";
+import { api } from "../lib/api";
+import { isFund, normalizeCurrency, summarize, type Holding } from "../lib/portfolio";
+import type { usePortfolios } from "../lib/usePortfolios";
+import { useAsync } from "../lib/useAsync";
+import { AllocationCard } from "./AllocationCard";
+import { HoldingsTable } from "./HoldingsTable";
+import { SummaryTiles } from "./SummaryTiles";
 
 export const CURRENCIES = ["USD", "EUR", "GBP", "CHF", "SEK", "NOK", "DKK", "JPY", "CAD", "AUD"];
 

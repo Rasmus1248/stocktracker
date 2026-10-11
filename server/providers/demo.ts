@@ -1,5 +1,5 @@
-import type { FundHoldings, Quote, QuoteType, ScreenerList, SearchResult } from "../../shared/types.ts";
-import { SCREENERS, type DataProvider, type ScreenerId } from "./provider.ts";
+import type { FundHoldings, Quote, QuoteType, ScreenerList, SearchResult } from "../../shared/types.js";
+import { SCREENERS, type DataProvider, type ScreenerId } from "./provider.js";
 
 // Offline sample data so the app can be developed and demoed without network access.
 // Numbers are illustrative only; they are not live market data.

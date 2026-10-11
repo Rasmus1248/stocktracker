@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Quote } from "../../shared/types.ts";
-import { allocation, summarize, type Portfolio } from "./portfolio.ts";
+import type { Quote } from "../../shared/types";
+import { allocation, summarize, type Portfolio } from "./portfolio";
 
 const q = (symbol: string, price: number, currency = "USD", extra: Partial<Quote> = {}): Quote => ({
   symbol, name: symbol, quoteType: "EQUITY", currency, exchange: "", price, ...extra,

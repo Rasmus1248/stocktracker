@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { SearchResult } from "../../shared/types.ts";
-import { api } from "../lib/api.ts";
-import { money, TYPE_LABEL } from "../lib/format.ts";
-import type { Holding } from "../lib/portfolio.ts";
-import { useAsync } from "../lib/useAsync.ts";
-import { SearchBox } from "./SearchBox.tsx";
+import type { SearchResult } from "../../shared/types";
+import { api } from "../lib/api";
+import { money, TYPE_LABEL } from "../lib/format";
+import type { Holding } from "../lib/portfolio";
+import { useAsync } from "../lib/useAsync";
+import { SearchBox } from "./SearchBox";
 
 interface Props {
   /** Pre-selected security, or an existing holding when editing. */

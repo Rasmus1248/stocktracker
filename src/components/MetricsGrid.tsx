@@ -1,6 +1,6 @@
-import type { Quote } from "../../shared/types.ts";
-import { compact, money, num, pct } from "../lib/format.ts";
-import { isFund } from "../lib/portfolio.ts";
+import type { Quote } from "../../shared/types";
+import { compact, money, num, pct } from "../lib/format";
+import { isFund } from "../lib/portfolio";
 
 export function RangeBar({ low, high, value }: { low?: number; high?: number; value: number }) {
   if (low == null || high == null || high <= low) return <span>—</span>;

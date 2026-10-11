@@ -1,13 +1,14 @@
 import { useState } from "react";
-import type { SearchResult } from "../shared/types.ts";
-import { ExploreView } from "./components/ExploreView.tsx";
-import { HoldingDialog } from "./components/HoldingDialog.tsx";
-import { PortfolioView } from "./components/PortfolioView.tsx";
-import { SecurityDetail } from "./components/SecurityDetail.tsx";
-import { api } from "./lib/api.ts";
-import type { Holding } from "./lib/portfolio.ts";
-import { usePortfolios } from "./lib/usePortfolios.ts";
-import { useAsync } from "./lib/useAsync.ts";
+import type { SearchResult } from "../shared/types";
+import { ExploreView } from "./components/ExploreView";
+import { HoldingDialog } from "./components/HoldingDialog";
+import { PortfolioView } from "./components/PortfolioView";
+import { SecurityDetail } from "./components/SecurityDetail";
+import { SYNC_LABEL, SyncDialog } from "./components/SyncDialog";
+import { api } from "./lib/api";
+import type { Holding } from "./lib/portfolio";
+import { usePortfolios } from "./lib/usePortfolios";
+import { useAsync } from "./lib/useAsync";
 
 type Tab = "portfolio" | "explore";
 type DialogState = { security?: SearchResult; editing?: Holding } | null;
@@ -17,6 +18,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>("portfolio");
   const [detail, setDetail] = useState<SearchResult | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [syncOpen, setSyncOpen] = useState(false);
   const meta = useAsync("meta", api.meta);
 
   return (
@@ -31,7 +33,16 @@ export function App() {
           ))}
         </nav>
         {meta.data?.source === "demo" && <span className="badge" title="Started with DATA_SOURCE=demo">Demo data</span>}
+        <span className="spacer" />
+        <button className={`ghost sync-status ${store.sync.status}`} onClick={() => setSyncOpen(true)} title={SYNC_LABEL[store.sync.status]}>
+          <span className="dot" aria-hidden /> Sync devices
+        </button>
       </header>
+      {store.sync.notice && (
+        <div className="notice" role="status">
+          {store.sync.notice} <button className="link small" onClick={store.sync.dismissNotice}>Dismiss</button>
+        </div>
+      )}
       <main>
         {detail && (
           <SecurityDetail security={detail} onClose={() => setDetail(null)} onAdd={(security) => setDialog({ security })} />
@@ -47,7 +58,8 @@ export function App() {
           <ExploreView onOpen={setDetail} />
         )}
       </main>
-      <footer className="muted small">Market data from Yahoo Finance, may be delayed. Portfolios are stored in this browser.</footer>
+      <footer className="muted small">Market data from Yahoo Finance, may be delayed. Portfolios sync across your devices with your sync code.</footer>
+      {syncOpen && <SyncDialog sync={store.sync} onClose={() => setSyncOpen(false)} />}
       {dialog && (
         <HoldingDialog
           {...dialog}

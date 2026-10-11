@@ -7,10 +7,8 @@
     "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
-    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "types": ["node", "vite/client"]
   },
-  "include": ["src", "server", "shared", "vite.config.ts"]
+  "include": ["src", "server", "shared", "api", "vite.config.ts"]
 }

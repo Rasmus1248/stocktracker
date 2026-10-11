@@ -1,4 +1,4 @@
-import type { FundHoldings, Quote, QuoteType } from "../../shared/types.ts";
+import type { FundHoldings, Quote, QuoteType } from "../../shared/types";
 
 export interface Holding {
   symbol: string;

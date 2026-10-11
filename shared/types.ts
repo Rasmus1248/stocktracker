@@ -55,4 +55,6 @@ export interface ScreenerList {
 
 export interface Meta {
   source: "yahoo" | "demo";
+  /** Whether the server has storage configured for cross-device sync. */
+  sync: boolean;
 }

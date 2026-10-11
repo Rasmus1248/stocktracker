@@ -1,5 +1,5 @@
-import { money, pct, signedMoney, trend } from "../lib/format.ts";
-import type { PortfolioSummary } from "../lib/portfolio.ts";
+import { money, pct, signedMoney, trend } from "../lib/format";
+import type { PortfolioSummary } from "../lib/portfolio";
 
 export function SummaryTiles({ s, currency }: { s: PortfolioSummary; currency: string }) {
   const tiles = [

@@ -1,8 +1,8 @@
-import type { SearchResult } from "../../shared/types.ts";
-import { api } from "../lib/api.ts";
-import { compact, money, pct, trend } from "../lib/format.ts";
-import { useAsync } from "../lib/useAsync.ts";
-import { SearchBox } from "./SearchBox.tsx";
+import type { SearchResult } from "../../shared/types";
+import { api } from "../lib/api";
+import { compact, money, pct, trend } from "../lib/format";
+import { useAsync } from "../lib/useAsync";
+import { SearchBox } from "./SearchBox";
 
 const LISTS = ["most_actives", "day_gainers", "day_losers"];
 
