@@ -6,6 +6,8 @@ import type { Holding } from "../lib/portfolio";
 import { useAsync } from "../lib/useAsync";
 import { SearchBox } from "./SearchBox";
 
+export const NOTE_MAX = 280;
+
 interface Props {
   /** Pre-selected security, or an existing holding when editing. */
   security?: SearchResult;
@@ -22,6 +24,7 @@ export function HoldingDialog({ security: initial, editing, portfolioName, onSav
   );
   const [shares, setShares] = useState(editing ? String(editing.shares) : "");
   const [cost, setCost] = useState(editing?.avgCost != null ? String(editing.avgCost) : "");
+  const [note, setNote] = useState(editing?.note ?? "");
   const quote = useAsync(security?.symbol ?? null, () => api.quotes([security!.symbol]).then((r) => r[0]));
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export function HoldingDialog({ security: initial, editing, portfolioName, onSav
         onSubmit={(e) => {
           e.preventDefault();
           if (!valid) return;
-          onSave({ symbol: security.symbol, name: quote.data?.name ?? security.name, quoteType: quote.data?.quoteType ?? security.quoteType, shares: sharesN, avgCost: costN });
+          onSave({ symbol: security.symbol, name: quote.data?.name ?? security.name, quoteType: quote.data?.quoteType ?? security.quoteType, shares: sharesN, avgCost: costN, note: note.trim() || undefined });
           onClose();
         }}
       >
@@ -67,6 +70,10 @@ export function HoldingDialog({ security: initial, editing, portfolioName, onSav
             <label>
               Average cost per share{quote.data ? ` (${quote.data.currency})` : ""} <span className="muted">— optional</span>
               <input type="number" min="0" step="any" value={cost} placeholder={quote.data ? String(quote.data.price) : ""} onChange={(e) => setCost(e.target.value)} />
+            </label>
+            <label>
+              Note <span className="muted">— optional</span>
+              <textarea rows={2} maxLength={NOTE_MAX} value={note} placeholder="e.g. Sell at 250 · Hold until 300" onChange={(e) => setNote(e.target.value)} />
             </label>
             {!editing && <p className="muted small">If you already hold this security, the shares are added and the average cost is recalculated.</p>}
           </>

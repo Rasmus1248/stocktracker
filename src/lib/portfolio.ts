@@ -7,6 +7,8 @@ export interface Holding {
   shares: number;
   /** Average purchase price per share, in the security's own currency. */
   avgCost?: number;
+  /** Free-text reminder, e.g. "sell at 250" or "hold until 300". */
+  note?: string;
 }
 
 export interface Portfolio {

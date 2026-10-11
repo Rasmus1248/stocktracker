@@ -84,6 +84,7 @@ export function PortfolioView({ store, onAdd, onEdit, onOpen }: Props) {
               currency={p.baseCurrency}
               onEdit={onEdit}
               onRemove={(h) => store.removeHolding(h.symbol)}
+              onNote={(h, note) => store.updateHolding(h.symbol, { note })}
               onOpen={(h) => onOpen({ symbol: h.symbol, name: h.name, quoteType: h.quoteType, exchange: "" })}
             />
           </section>

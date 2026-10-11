@@ -65,7 +65,7 @@ export function App() {
           {...dialog}
           portfolioName={store.active.name}
           onClose={() => setDialog(null)}
-          onSave={(h) => (dialog.editing ? store.updateHolding(h.symbol, { shares: h.shares, avgCost: h.avgCost }) : store.addHolding(h))}
+          onSave={(h) => (dialog.editing ? store.updateHolding(h.symbol, { shares: h.shares, avgCost: h.avgCost, note: h.note }) : store.addHolding(h))}
         />
       )}
     </>

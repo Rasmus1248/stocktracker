@@ -232,7 +232,8 @@ export function usePortfolios() {
           existing.avgCost != null && h.avgCost != null
             ? (existing.avgCost * existing.shares + h.avgCost * h.shares) / shares
             : (existing.avgCost ?? h.avgCost);
-        return { ...p, holdings: p.holdings.map((x) => (x === existing ? { ...x, shares, avgCost } : x)) };
+        const note = h.note || existing.note;
+        return { ...p, holdings: p.holdings.map((x) => (x === existing ? { ...x, shares, avgCost, note } : x)) };
       }),
     updateHolding: (symbol: string, patch: Partial<Holding>) =>
       updateActive((p) => ({ ...p, holdings: p.holdings.map((x) => (x.symbol === symbol ? { ...x, ...patch } : x)) })),

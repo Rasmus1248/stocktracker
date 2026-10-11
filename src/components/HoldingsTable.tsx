@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { compact, money, num, pct, signedMoney, TYPE_LABEL, trend } from "../lib/format";
 import type { Holding, Position } from "../lib/portfolio";
+import { NOTE_MAX } from "./HoldingDialog";
 import { RangeBar } from "./MetricsGrid";
 
 type SortKey = "symbol" | "value" | "weight" | "day" | "gain" | "pe" | "cap" | "div";
@@ -21,10 +22,12 @@ interface Props {
   currency: string;
   onEdit: (h: Holding) => void;
   onRemove: (h: Holding) => void;
+  onNote: (h: Holding, note: string | undefined) => void;
   onOpen: (h: Holding) => void;
 }
 
-export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen }: Props) {
+export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen, onNote }: Props) {
+  const [editingNote, setEditingNote] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "value", desc: true });
   const rows = [...positions].sort((a, b) => {
     const x = sorters[sort.key](a), y = sorters[sort.key](b);
@@ -69,6 +72,20 @@ export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen }:
                 <button className="link sym" onClick={() => onOpen(h)}>{h.symbol}</button>{" "}
                 <span className="tag">{TYPE_LABEL[h.quoteType]}</span>
                 <div className="name muted small" title={h.name}>{q?.name ?? h.name}</div>
+                {editingNote === h.symbol ? (
+                  <NoteEditor
+                    initial={h.note ?? ""}
+                    onSave={(note) => {
+                      onNote(h, note.trim() || undefined);
+                      setEditingNote(null);
+                    }}
+                    onCancel={() => setEditingNote(null)}
+                  />
+                ) : h.note ? (
+                  <button className="note" onClick={() => setEditingNote(h.symbol)} title="Edit note">
+                    <span aria-hidden>📝</span> {h.note}
+                  </button>
+                ) : null}
               </td>
               <td className="num">{num(h.shares, 4)}</td>
               <td className="num">{q ? money(q.price, q.currency) : "—"}</td>
@@ -91,6 +108,9 @@ export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen }:
               <td className="num">{pct(q?.dividendYield)}</td>
               <td>{q ? <RangeBar low={q.fiftyTwoWeekLow} high={q.fiftyTwoWeekHigh} value={q.price} /> : "—"}</td>
               <td className="actions">
+                {!h.note && editingNote !== h.symbol && (
+                  <button className="ghost small" onClick={() => setEditingNote(h.symbol)}>Add note</button>
+                )}
                 <button className="ghost small" onClick={() => onEdit(h)}>Edit</button>
                 <button className="ghost small" onClick={() => confirm(`Remove ${h.symbol} from this portfolio?`) && onRemove(h)}>Remove</button>
               </td>
@@ -99,5 +119,31 @@ export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen }:
         </tbody>
       </table>
     </div>
+  );
+}
+
+function NoteEditor({ initial, onSave, onCancel }: { initial: string; onSave: (note: string) => void; onCancel: () => void }) {
+  const [text, setText] = useState(initial);
+  return (
+    <form
+      className="note-editor"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(text);
+      }}
+    >
+      <input
+        autoFocus
+        maxLength={NOTE_MAX}
+        value={text}
+        placeholder="e.g. Sell at 250"
+        aria-label="Note"
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => e.key === "Escape" && onCancel()}
+      />
+      <button type="submit" className="small primary">Save</button>
+      {initial && <button type="button" className="small ghost" onClick={() => onSave("")}>Delete</button>}
+      <button type="button" className="small ghost" onClick={onCancel}>Cancel</button>
+    </form>
   );
 }
