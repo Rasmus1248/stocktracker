@@ -1,4 +1,4 @@
-import type { FundHoldings, Quote, ScreenerList, SearchResult } from "../../shared/types.js";
+import type { FundHoldings, PriceHistory, Quote, ScreenerList, SearchResult } from "../../shared/types.js";
 
 export const SCREENERS = {
   most_actives: "Most active",
@@ -14,4 +14,6 @@ export interface DataProvider {
   fx(from: string[], to: string): Promise<Record<string, number>>;
   fundHoldings(symbol: string): Promise<FundHoldings>;
   screener(id: ScreenerId): Promise<ScreenerList>;
+  /** Daily closes from `from` (YYYY-MM-DD) until today. Also works for FX pairs such as EURUSD=X. */
+  history(symbol: string, from: string): Promise<PriceHistory>;
 }

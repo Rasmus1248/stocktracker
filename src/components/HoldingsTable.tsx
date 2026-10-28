@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { compact, money, num, pct, signedMoney, TYPE_LABEL, trend } from "../lib/format";
 import type { Holding, Position } from "../lib/portfolio";
-import { NOTE_MAX } from "./HoldingDialog";
+import type { TxType } from "../lib/ledger";
+import { CASH_PREFIX, isCash } from "../lib/portfolio";
+import { NOTE_MAX } from "./TradeDialog";
 import { RangeBar } from "./MetricsGrid";
 
 type SortKey = "symbol" | "value" | "weight" | "day" | "gain" | "pe" | "cap" | "div";
@@ -20,13 +22,17 @@ const sorters: Record<SortKey, (p: Position) => number | string | undefined> = {
 interface Props {
   positions: Position[];
   currency: string;
-  onEdit: (h: Holding) => void;
-  onRemove: (h: Holding) => void;
-  onNote: (h: Holding, note: string | undefined) => void;
+  /** Open the trade dialog for this holding. */
+  onTrade: (h: Holding, type: TxType) => void;
+  /** Open the imported transaction that has no purchase price. */
+  onAddCost: (h: Holding) => void;
+  /** Omitted in the combined view, where notes are read-only. */
+  onNote?: (h: Holding, note: string | undefined) => void;
   onOpen: (h: Holding) => void;
+  showPortfolios: boolean;
 }
 
-export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen, onNote }: Props) {
+export function HoldingsTable({ positions, currency, onTrade, onAddCost, onOpen, onNote, showPortfolios }: Props) {
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "value", desc: true });
   const rows = [...positions].sort((a, b) => {
@@ -67,12 +73,31 @@ export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen, o
         </thead>
         <tbody>
           {rows.map(({ holding: h, quote: q, value, weight, gain, gainPercent, cost }) => (
+            isCash(h) ? (
+              <tr key={h.symbol} className="cash-row">
+                <td>
+                  <span className="sym">{h.name}</span> <span className="tag">Cash</span>
+                  {showPortfolios && <div className="muted small">{h.portfolios.join(", ")}</div>}
+                </td>
+                <td className="num">{money(h.shares, h.symbol.slice(CASH_PREFIX.length))}</td>
+                <td className="num">—</td>
+                <td className="num">—</td>
+                <td className="num">{money(value, currency)}</td>
+                <td className="num">{pct(weight != null ? weight * 100 : undefined, 1)}</td>
+                <td colSpan={6} />
+                <td className="actions">
+                  <button className="ghost small" onClick={() => onTrade(h, "deposit")}>Deposit</button>
+                  <button className="ghost small" onClick={() => onTrade(h, "withdrawal")}>Withdraw</button>
+                </td>
+              </tr>
+            ) : (
             <tr key={h.symbol}>
               <td>
                 <button className="link sym" onClick={() => onOpen(h)}>{h.symbol}</button>{" "}
                 <span className="tag">{TYPE_LABEL[h.quoteType]}</span>
                 <div className="name muted small" title={h.name}>{q?.name ?? h.name}</div>
-                {editingNote === h.symbol ? (
+                {showPortfolios && <div className="muted small">In: {h.portfolios.join(", ")}</div>}
+                {editingNote === h.symbol && onNote ? (
                   <NoteEditor
                     initial={h.note ?? ""}
                     onSave={(note) => {
@@ -82,7 +107,7 @@ export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen, o
                     onCancel={() => setEditingNote(null)}
                   />
                 ) : h.note ? (
-                  <button className="note" onClick={() => setEditingNote(h.symbol)} title="Edit note">
+                  <button className="note" onClick={() => onNote && setEditingNote(h.symbol)} title={onNote ? "Edit note" : undefined} disabled={!onNote}>
                     <span aria-hidden>📝</span> {h.note}
                   </button>
                 ) : null}
@@ -99,7 +124,7 @@ export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen, o
                     <div className="small">{pct(gainPercent, 2, true)}</div>
                   </>
                 ) : (
-                  <button className="link small" onClick={() => onEdit(h)}>Add cost</button>
+                  <button className="link small" onClick={() => onAddCost(h)}>Add cost</button>
                 )}
               </td>
               <td className="num">{compact(q?.marketCap)}</td>
@@ -108,13 +133,14 @@ export function HoldingsTable({ positions, currency, onEdit, onRemove, onOpen, o
               <td className="num">{pct(q?.dividendYield)}</td>
               <td>{q ? <RangeBar low={q.fiftyTwoWeekLow} high={q.fiftyTwoWeekHigh} value={q.price} /> : "—"}</td>
               <td className="actions">
-                {!h.note && editingNote !== h.symbol && (
-                  <button className="ghost small" onClick={() => setEditingNote(h.symbol)}>Add note</button>
+                <button className="ghost small" onClick={() => onTrade(h, "buy")}>Buy</button>
+                <button className="ghost small" onClick={() => onTrade(h, "sell")}>Sell</button>
+                {onNote && !h.note && editingNote !== h.symbol && (
+                  <button className="ghost small" onClick={() => setEditingNote(h.symbol)}>Note</button>
                 )}
-                <button className="ghost small" onClick={() => onEdit(h)}>Edit</button>
-                <button className="ghost small" onClick={() => confirm(`Remove ${h.symbol} from this portfolio?`) && onRemove(h)}>Remove</button>
               </td>
             </tr>
+            )
           ))}
         </tbody>
       </table>

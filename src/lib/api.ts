@@ -1,4 +1,4 @@
-import type { FundHoldings, Meta, Quote, ScreenerList, SearchResult } from "../../shared/types";
+import type { FundHoldings, Meta, PriceHistory, Quote, ScreenerList, SearchResult } from "../../shared/types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -18,5 +18,6 @@ export const api = {
   quotes: (symbols: string[]) => get<Quote[]>(`/api/quotes?symbols=${enc(symbols.join(","))}`),
   fx: (from: string[], to: string) => get<Record<string, number>>(`/api/fx?from=${enc(from.join(","))}&to=${enc(to)}`),
   holdings: (symbol: string) => get<FundHoldings>(`/api/holdings/${enc(symbol)}`),
+  history: (symbol: string, from: string) => get<PriceHistory>(`/api/history/${enc(symbol)}?from=${enc(from)}`),
   screener: (id: string) => get<ScreenerList>(`/api/screener/${enc(id)}`),
 };

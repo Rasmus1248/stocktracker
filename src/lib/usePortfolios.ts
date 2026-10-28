@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Holding, Portfolio } from "./portfolio";
+import { api } from "./api";
+import type { Transaction } from "./ledger";
+import { migratePortfolio, type Portfolio } from "./portfolio";
 import { generateCode, normalizeCode } from "./syncCode";
 
 const KEY = "stocktracker.v1";
 const SYNC_KEY = "stocktracker.sync";
 
+/** Pseudo portfolio id for the combined "All portfolios" view. */
+export const ALL = "__all__";
+
 interface Store {
   portfolios: Portfolio[];
+  /** A portfolio id, or ALL. */
   activeId: string;
+  /** Currency for the combined view (kept per device). */
+  allCurrency?: string;
 }
 
 export type SyncStatus = "connecting" | "saving" | "synced" | "offline" | "unavailable";
@@ -24,8 +32,10 @@ interface RemoteDoc {
   data: { portfolios: Portfolio[] };
 }
 
-const newId = () => Math.random().toString(36).slice(2, 10);
-const blank = (name: string, baseCurrency = "USD"): Portfolio => ({ id: newId(), name, baseCurrency, holdings: [] });
+export const newId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const blank = (name: string, baseCurrency = "USD"): Portfolio => ({ id: newId(), name, baseCurrency, transactions: [], notes: {} });
+export const today = () => new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD in local time
+const migrateAll = (ps: Portfolio[]) => ps.map((p) => migratePortfolio(p, today()));
 
 function readJson<T>(key: string): T | null {
   try {
@@ -45,7 +55,7 @@ function writeJson(key: string, value: unknown) {
 
 function loadStore(): Store {
   const s = readJson<Store>(KEY);
-  if (s?.portfolios?.length) return s;
+  if (s?.portfolios?.length) return { ...s, portfolios: migrateAll(s.portfolios) };
   const p = blank("My portfolio");
   return { portfolios: [p], activeId: p.id };
 }
@@ -90,9 +100,11 @@ export function usePortfolios() {
     if (!doc.data?.portfolios?.length) return;
     version.current = doc.version;
     persistSync();
+    const portfolios = migrateAll(doc.data.portfolios);
     setStore((s) => ({
-      portfolios: doc.data.portfolios,
-      activeId: doc.data.portfolios.some((p) => p.id === s.activeId) ? s.activeId : doc.data.portfolios[0].id,
+      ...s,
+      portfolios,
+      activeId: s.activeId === ALL || portfolios.some((p) => p.id === s.activeId) ? s.activeId : portfolios[0].id,
     }));
   }, []);
 
@@ -181,12 +193,38 @@ export function usePortfolios() {
     setStore(fn);
     setEdits(++editCount.current);
   }, []);
-  const updateActive = useCallback(
-    (fn: (p: Portfolio) => Portfolio) => edit((s) => ({ ...s, portfolios: s.portfolios.map((p) => (p.id === s.activeId ? fn(p) : p)) })),
+  const updatePortfolio = useCallback(
+    (id: string, fn: (p: Portfolio) => Portfolio) => edit((s) => ({ ...s, portfolios: s.portfolios.map((p) => (p.id === id ? fn(p) : p)) })),
     [edit],
   );
 
+  const isAll = store.activeId === ALL && store.portfolios.length > 1;
   const active = store.portfolios.find((p) => p.id === store.activeId) ?? store.portfolios[0];
+  /** The portfolios on screen: the active one, or all of them. */
+  const shown = isAll ? store.portfolios : [active];
+  const viewCurrency = isAll ? (store.allCurrency ?? store.portfolios[0].baseCurrency) : active.baseCurrency;
+
+  // Holdings imported from before trade tracking have no currency; fill it in from a quote.
+  const repairing = useRef(false);
+  useEffect(() => {
+    const missing = [...new Set(store.portfolios.flatMap((p) => p.transactions.filter((t) => !t.currency && t.symbol).map((t) => t.symbol!)))];
+    if (missing.length === 0 || repairing.current) return;
+    repairing.current = true;
+    api.quotes(missing).then(
+      (quotes) => {
+        const ccy = Object.fromEntries(quotes.map((q) => [q.symbol, q.currency]));
+        edit((s) => ({
+          ...s,
+          portfolios: s.portfolios.map((p) => ({
+            ...p,
+            transactions: p.transactions.map((t) => (!t.currency && t.symbol && ccy[t.symbol] ? { ...t, currency: ccy[t.symbol] } : t)),
+          })),
+        }));
+        repairing.current = false;
+      },
+      () => (repairing.current = false),
+    );
+  }, [store.portfolios, edit]);
 
   return {
     portfolios: store.portfolios,
@@ -209,35 +247,39 @@ export function usePortfolios() {
       dismissNotice: () => setSync((s) => ({ ...s, notice: undefined })),
       retry: () => void (dirty.current ? push() : pull()),
     },
+    isAll,
+    shown,
+    viewCurrency,
     select: (id: string) => setStore((s) => ({ ...s, activeId: id })),
     create: (name: string) => {
-      const p = blank(name, active.baseCurrency);
-      edit((s) => ({ portfolios: [...s.portfolios, p], activeId: p.id }));
+      const p = blank(name, viewCurrency);
+      edit((s) => ({ ...s, portfolios: [...s.portfolios, p], activeId: p.id }));
     },
-    rename: (name: string) => updateActive((p) => ({ ...p, name })),
+    rename: (name: string) => updatePortfolio(active.id, (p) => ({ ...p, name })),
     remove: () =>
       edit((s) => {
-        const rest = s.portfolios.filter((p) => p.id !== s.activeId);
+        const rest = s.portfolios.filter((p) => p.id !== active.id);
         const portfolios = rest.length ? rest : [blank("My portfolio")];
-        return { portfolios, activeId: portfolios[0].id };
+        return { ...s, portfolios, activeId: portfolios[0].id };
       }),
-    setBaseCurrency: (baseCurrency: string) => updateActive((p) => ({ ...p, baseCurrency })),
-    /** Adding a symbol that's already held merges the lots, averaging the cost basis. */
-    addHolding: (h: Holding) =>
-      updateActive((p) => {
-        const existing = p.holdings.find((x) => x.symbol === h.symbol);
-        if (!existing) return { ...p, holdings: [...p.holdings, h] };
-        const shares = existing.shares + h.shares;
-        const avgCost =
-          existing.avgCost != null && h.avgCost != null
-            ? (existing.avgCost * existing.shares + h.avgCost * h.shares) / shares
-            : (existing.avgCost ?? h.avgCost);
-        const note = h.note || existing.note;
-        return { ...p, holdings: p.holdings.map((x) => (x === existing ? { ...x, shares, avgCost, note } : x)) };
+    setCurrency: (currency: string) =>
+      isAll ? setStore((s) => ({ ...s, allCurrency: currency })) : updatePortfolio(active.id, (p) => ({ ...p, baseCurrency: currency })),
+    /** Adds the transaction, or replaces the one with the same id. */
+    saveTransaction: (portfolioId: string, tx: Transaction) =>
+      updatePortfolio(portfolioId, (p) => ({
+        ...p,
+        transactions: p.transactions.some((t) => t.id === tx.id)
+          ? p.transactions.map((t) => (t.id === tx.id ? tx : t))
+          : [...p.transactions, tx],
+      })),
+    deleteTransaction: (portfolioId: string, id: string) =>
+      updatePortfolio(portfolioId, (p) => ({ ...p, transactions: p.transactions.filter((t) => t.id !== id) })),
+    setNote: (portfolioId: string, symbol: string, note: string | undefined) =>
+      updatePortfolio(portfolioId, (p) => {
+        const notes = { ...p.notes };
+        if (note) notes[symbol] = note;
+        else delete notes[symbol];
+        return { ...p, notes };
       }),
-    updateHolding: (symbol: string, patch: Partial<Holding>) =>
-      updateActive((p) => ({ ...p, holdings: p.holdings.map((x) => (x.symbol === symbol ? { ...x, ...patch } : x)) })),
-    removeHolding: (symbol: string) =>
-      updateActive((p) => ({ ...p, holdings: p.holdings.filter((x) => x.symbol !== symbol) })),
   };
 }

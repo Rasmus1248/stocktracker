@@ -25,5 +25,5 @@ export const signedMoney = (v: number | undefined, currency: string) =>
 export const trend = (v: number | undefined) => (v == null || v === 0 ? "" : v > 0 ? "up" : "down");
 
 export const TYPE_LABEL: Record<string, string> = {
-  EQUITY: "Stock", ETF: "ETF", MUTUALFUND: "Fund", INDEX: "Index", CRYPTOCURRENCY: "Crypto", CURRENCY: "FX", FUTURE: "Future", OTHER: "Other",
+  EQUITY: "Stock", ETF: "ETF", CASH: "Cash", MUTUALFUND: "Fund", INDEX: "Index", CRYPTOCURRENCY: "Crypto", CURRENCY: "FX", FUTURE: "Future", OTHER: "Other",
 };

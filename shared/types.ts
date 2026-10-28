@@ -1,4 +1,4 @@
-export type QuoteType = "EQUITY" | "ETF" | "MUTUALFUND" | "INDEX" | "CRYPTOCURRENCY" | "CURRENCY" | "FUTURE" | "OTHER";
+export type QuoteType = "EQUITY" | "ETF" | "MUTUALFUND" | "INDEX" | "CRYPTOCURRENCY" | "CURRENCY" | "FUTURE" | "CASH" | "OTHER";
 
 export interface SearchResult {
   symbol: string;
@@ -45,6 +45,14 @@ export interface FundHoldings {
   holdings: FundHolding[];
   /** Sum of the weights that Yahoo reports (usually the top 10 only). */
   coveredWeight: number;
+}
+
+/** Daily closing prices, oldest first, as [YYYY-MM-DD, close]. Closes are the prices that actually
+ *  traded on each day (not adjusted for later stock splits), so they match what you paid at the time. */
+export interface PriceHistory {
+  symbol: string;
+  currency: string;
+  points: [string, number][];
 }
 
 export interface ScreenerList {

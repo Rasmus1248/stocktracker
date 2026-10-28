@@ -65,6 +65,14 @@ api.get("/screener/:id", route(async (req) => {
   return cached(`screener:${id}`, 5 * MIN, () => provider.screener(id));
 }, 300));
 
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+api.get("/history/:symbol", route(async (req) => {
+  const symbol = String(req.params.symbol).toUpperCase();
+  const from = String(req.query.from ?? "");
+  if (!DATE.test(from)) throw httpError(400, "`from` must be a date like 2024-01-31");
+  return cached(`history:${symbol}:${from}`, 60 * MIN, () => provider.history(symbol, from));
+}, 3600));
+
 // --- Cross-device sync. The sync code is the only credential, so it must be long and random.
 const CODE = /^[a-z0-9]{4}(-[a-z0-9]{4}){4}$/;
 function syncTarget(req: Request) {
@@ -82,7 +90,7 @@ api.get("/sync/:code", route(async (req, res) => {
   return doc;
 }));
 
-api.put("/sync/:code", express.json({ limit: "256kb" }), route(async (req, res) => {
+api.put("/sync/:code", express.json({ limit: "1mb" }), route(async (req, res) => {
   const { store, id } = syncTarget(req);
   res.set("Cache-Control", "no-store");
   const { baseVersion, data } = req.body ?? {};

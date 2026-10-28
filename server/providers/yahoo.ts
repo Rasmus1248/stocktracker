@@ -1,5 +1,5 @@
 import YahooFinance from "yahoo-finance2";
-import type { FundHoldings, Quote, QuoteType, ScreenerList, SearchResult } from "../../shared/types.js";
+import type { FundHoldings, PriceHistory, Quote, QuoteType, ScreenerList, SearchResult } from "../../shared/types.js";
 import { SCREENERS, type DataProvider, type ScreenerId } from "./provider.js";
 
 const KNOWN_TYPES: QuoteType[] = ["EQUITY", "ETF", "MUTUALFUND", "INDEX", "CRYPTOCURRENCY", "CURRENCY", "FUTURE"];
@@ -80,8 +80,29 @@ export class YahooProvider implements DataProvider {
     return { symbol, holdings, coveredWeight };
   }
 
+  async history(symbol: string, from: string): Promise<PriceHistory> {
+    const res = (await this.yf.chart(symbol, { period1: from, interval: "1d", events: "split" }, loose)) as Raw;
+    const splits: Raw[] = Array.isArray(res.events?.splits) ? res.events.splits : Object.values(res.events?.splits ?? {});
+    const points: [string, number][] = (res.quotes ?? [])
+      .filter((q: Raw) => q.close != null)
+      .map((q: Raw) => [new Date(q.date).toISOString().slice(0, 10), q.close]);
+    return { symbol, currency: res.meta?.currency ?? "USD", points: unadjustSplits(points, splits) };
+  }
+
   async screener(id: ScreenerId): Promise<ScreenerList> {
     const res = (await this.yf.screener({ scrIds: id, count: 25 }, undefined, loose)) as Raw;
     return { id, title: SCREENERS[id], quotes: (res.quotes ?? []).map(mapQuote) };
   }
+}
+
+/**
+ * Yahoo's closes are adjusted for every later stock split. Undo that so a past close is the price
+ * that actually traded that day: multiply by the ratio of each split that happened after it.
+ */
+export function unadjustSplits(points: [string, number][], splits: Raw[]): [string, number][] {
+  const events = splits
+    .map((s) => ({ date: new Date(s.date).toISOString().slice(0, 10), ratio: s.numerator / s.denominator }))
+    .filter((s) => Number.isFinite(s.ratio) && s.ratio > 0);
+  if (events.length === 0) return points;
+  return points.map(([d, close]) => [d, events.reduce((c, s) => (d < s.date ? c * s.ratio : c), close)]);
 }

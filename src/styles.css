@@ -225,3 +225,33 @@ textarea { font: inherit; color: inherit; background: var(--surface); border: 1p
 .note:hover { filter: brightness(0.97); background: var(--warn-bg); }
 .note-editor { display: flex; gap: 4px; align-items: center; margin-top: 4px; min-width: 300px; }
 .note-editor input { flex: 1; padding: 3px 8px; font-size: 12px; }
+
+/* Trades, sub-tabs, performance */
+.subtabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.subtabs button { border: 0; border-radius: 0; background: none; padding: 8px 14px; color: var(--text-2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.subtabs button.active { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
+.banner { margin: 0; }
+.row.center { justify-content: center; }
+.segmented.wide { display: flex; flex-wrap: wrap; }
+.segmented.wide button { flex: 1; white-space: nowrap; }
+.segmented.wide button:first-child { border-radius: 8px 0 0 8px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.grid-3 .span-2 { grid-column: span 2; }
+.grid-3 input { width: 100%; }
+.dialog label.check { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+.dialog .link.small { align-self: flex-start; }
+button.danger { color: var(--down); }
+.nowrap { white-space: nowrap; }
+.tx-type { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 4px; background: var(--surface-2); }
+.tx-type.buy { color: var(--accent); }
+.tx-type.sell { color: var(--series-2); }
+.tx-type.dividend, .tx-type.deposit { color: var(--up); }
+.tx-type.withdrawal { color: var(--down); }
+tr.has-issue td { background: var(--warn-bg); }
+.cash-row td { background: color-mix(in oklab, var(--surface-2) 50%, transparent); }
+.note:disabled { cursor: default; opacity: 1; }
+@media (max-width: 760px) {
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+  .grid-3 .span-2 { grid-column: span 2; }
+}
+.segmented.wide button:nth-child(2) { border-radius: 0; }

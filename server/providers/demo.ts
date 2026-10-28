@@ -1,4 +1,4 @@
-import type { FundHoldings, Quote, QuoteType, ScreenerList, SearchResult } from "../../shared/types.js";
+import type { FundHoldings, PriceHistory, Quote, QuoteType, ScreenerList, SearchResult } from "../../shared/types.js";
 import { SCREENERS, type DataProvider, type ScreenerId } from "./provider.js";
 
 // Offline sample data so the app can be developed and demoed without network access.
@@ -71,6 +71,27 @@ export class DemoProvider implements DataProvider {
   async fundHoldings(symbol: string): Promise<FundHoldings> {
     const holdings = (FUNDS[symbol] ?? []).map(([s, name, weight]) => ({ symbol: s, name, weight }));
     return { symbol, holdings, coveredWeight: holdings.reduce((s, h) => s + h.weight, 0) };
+  }
+
+  /** A deterministic random walk that ends at today's demo price. */
+  async history(symbol: string, from: string): Promise<PriceHistory> {
+    const fx = symbol.match(/^([A-Z]{3})([A-Z]{3})=X$/);
+    const row = ROWS.find((r) => r[0] === symbol);
+    const last = fx ? (FX_TO_USD[fx[1]] ?? 1) / (FX_TO_USD[fx[2]] ?? 1) : row?.[5];
+    if (last == null) throw Object.assign(new Error(`No history for ${symbol}`), { status: 404 });
+    const days: string[] = [];
+    for (let d = new Date(`${from}T00:00:00Z`); d <= new Date(); d.setUTCDate(d.getUTCDate() + 1)) {
+      if (d.getUTCDay() % 6 !== 0) days.push(d.toISOString().slice(0, 10));
+    }
+    let seed = [...symbol].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+    let price = last;
+    const points: [string, number][] = [];
+    for (let i = days.length - 1; i >= 0; i--) {
+      points.push([days[i], +price.toFixed(4)]);
+      price /= 1 + (fx ? 0.003 : 0.018) * (rand() - 0.47); // gentle upward drift going forward
+    }
+    return { symbol, currency: fx ? fx[2] : row![3], points: points.reverse() };
   }
 
   async screener(id: ScreenerId): Promise<ScreenerList> {

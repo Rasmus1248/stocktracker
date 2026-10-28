@@ -1,31 +1,103 @@
 import type { FundHoldings, Quote, QuoteType } from "../../shared/types";
-
-export interface Holding {
-  symbol: string;
-  name: string;
-  quoteType: QuoteType;
-  shares: number;
-  /** Average purchase price per share, in the security's own currency. */
-  avgCost?: number;
-  /** Free-text reminder, e.g. "sell at 250" or "hold until 300". */
-  note?: string;
-}
+import { computeLedger, currencyUnit, type Transaction } from "./ledger";
 
 export interface Portfolio {
   id: string;
   name: string;
   baseCurrency: string;
-  holdings: Holding[];
+  transactions: Transaction[];
+  /** Free-text reminders per symbol, e.g. "sell at 250" or "hold until 300". */
+  notes: Record<string, string>;
 }
 
+/** A current position, derived from one or more portfolios' transactions. Cash balances are holdings too. */
+export interface Holding {
+  symbol: string;
+  name: string;
+  quoteType: QuoteType;
+  /** For cash, the balance. */
+  shares: number;
+  /** Average cost per share including fees, in the security's quote currency. Undefined if unknown. */
+  avgCost?: number;
+  note?: string;
+  /** Names of the portfolios holding it (shown in the combined view). */
+  portfolios: string[];
+}
+
+export const CASH_PREFIX = "CASH:";
+export const isCash = (h: { quoteType: QuoteType }) => h.quoteType === "CASH";
 export const isFund = (t: QuoteType) => t === "ETF" || t === "MUTUALFUND";
 
 /** Yahoo quotes London listings in pence (GBp/GBX); normalise to whole currency units. */
 export function normalizeCurrency(currency: string, amount: number): [string, number] {
-  if (currency === "GBp" || currency === "GBX") return ["GBP", amount / 100];
-  if (currency === "ZAc") return ["ZAR", amount / 100];
-  if (currency === "ILA") return ["ILS", amount / 100];
-  return [currency.toUpperCase(), amount];
+  const [ccy, unit] = currencyUnit(currency);
+  return [ccy, amount / unit];
+}
+
+/** Holdings plus all-time realized results for one portfolio or several combined. */
+export interface PortfolioView {
+  holdings: Holding[];
+  /** Realized gains from sells, by quote currency (e.g. GBp). */
+  realized: Record<string, number>;
+  /** Dividends received, by currency. */
+  dividends: Record<string, number>;
+  issues: number;
+}
+
+const add = (rec: Record<string, number>, k: string, v: number) => (rec[k] = (rec[k] ?? 0) + v);
+
+export function buildView(portfolios: Portfolio[]): PortfolioView {
+  const bySymbol = new Map<string, Holding & { cost?: number }>();
+  const realized: Record<string, number> = {};
+  const dividends: Record<string, number> = {};
+  let issues = 0;
+
+  for (const p of portfolios) {
+    const ledger = computeLedger(p.transactions);
+    issues += ledger.issues.size;
+    for (const pos of ledger.positions.values()) {
+      if (pos.realized) add(realized, pos.currency, pos.realized);
+      for (const [ccy, v] of Object.entries(pos.dividends)) add(dividends, ccy, v);
+      if (pos.shares <= 0) continue;
+      const h = bySymbol.get(pos.symbol);
+      const note = p.notes?.[pos.symbol];
+      if (!h) {
+        bySymbol.set(pos.symbol, {
+          symbol: pos.symbol, name: pos.name, quoteType: pos.quoteType, shares: pos.shares, cost: pos.cost,
+          note, portfolios: [p.name],
+        });
+      } else {
+        h.shares += pos.shares;
+        h.cost = h.cost == null || pos.cost == null ? undefined : h.cost + pos.cost;
+        h.portfolios.push(p.name);
+        if (note) h.note = h.note ? `${h.note} · ${note}` : note;
+      }
+    }
+    for (const [ccy, amount] of Object.entries(ledger.cash)) {
+      if (Math.abs(amount) < 0.005) continue;
+      const key = CASH_PREFIX + ccy;
+      const h = bySymbol.get(key);
+      if (h) {
+        h.shares += amount;
+        h.portfolios.push(p.name);
+      } else bySymbol.set(key, { symbol: key, name: `Cash (${ccy})`, quoteType: "CASH", shares: amount, portfolios: [p.name] });
+    }
+  }
+
+  const holdings = [...bySymbol.values()].map(({ cost, ...h }) => ({
+    ...h,
+    avgCost: !isCash(h) && cost != null && h.shares > 0 ? cost / h.shares : undefined,
+  }));
+  return { holdings, realized, dividends, issues };
+}
+
+/** Currencies a view needs FX rates for, besides those of its quotes. */
+export function viewCurrencies(view: PortfolioView): string[] {
+  const set = new Set<string>();
+  for (const h of view.holdings) if (isCash(h)) set.add(h.symbol.slice(CASH_PREFIX.length));
+  for (const c of Object.keys(view.realized)) set.add(currencyUnit(c)[0]);
+  for (const c of Object.keys(view.dividends)) set.add(currencyUnit(c)[0]);
+  return [...set];
 }
 
 export interface Position {
@@ -43,22 +115,30 @@ export interface Position {
 export interface PortfolioSummary {
   positions: Position[];
   totalValue: number;
+  cashValue: number;
+  /** Unrealized gain on holdings with a known cost. */
   totalCost: number;
   totalGain: number;
   totalGainPercent?: number;
+  /** All-time realized gains plus dividends, at today's exchange rates. */
+  realizedGain: number;
   dayChange: number;
   dayChangePercent?: number;
   weightedDividendYield?: number;
   missing: string[];
 }
 
-export function summarize(
-  portfolio: Portfolio,
-  quotes: Record<string, Quote>,
-  fx: Record<string, number>,
-): PortfolioSummary {
+export function summarize(view: PortfolioView, quotes: Record<string, Quote>, fx: Record<string, number>): PortfolioSummary {
   const missing: string[] = [];
-  const positions: Position[] = portfolio.holdings.map((holding) => {
+  const positions: Position[] = view.holdings.map((holding) => {
+    if (isCash(holding)) {
+      const rate = fx[holding.symbol.slice(CASH_PREFIX.length)];
+      if (rate == null) {
+        missing.push(holding.name);
+        return { holding };
+      }
+      return { holding, value: holding.shares * rate, dayChange: 0 };
+    }
     const quote = quotes[holding.symbol];
     if (!quote) {
       missing.push(holding.symbol);
@@ -73,7 +153,7 @@ export function summarize(
     const value = holding.shares * price * rate;
     const pos: Position = { holding, quote, value };
     if (holding.avgCost != null && holding.avgCost > 0) {
-      // avgCost is entered in display units (e.g. pence for GBp listings), same as the quoted price.
+      // avgCost is in display units (e.g. pence for GBp listings), same as the quoted price.
       pos.cost = holding.shares * normalizeCurrency(quote.currency, holding.avgCost)[1] * rate;
       pos.gain = value - pos.cost;
       pos.gainPercent = (pos.gain / pos.cost) * 100;
@@ -84,6 +164,7 @@ export function summarize(
 
   const totalValue = positions.reduce((s, p) => s + (p.value ?? 0), 0);
   for (const p of positions) if (p.value != null && totalValue > 0) p.weight = p.value / totalValue;
+  const cashValue = positions.filter((p) => isCash(p.holding)).reduce((s, p) => s + (p.value ?? 0), 0);
 
   const withCost = positions.filter((p) => p.cost != null);
   const totalCost = withCost.reduce((s, p) => s + p.cost!, 0);
@@ -91,21 +172,45 @@ export function summarize(
   const dayChange = positions.reduce((s, p) => s + (p.dayChange ?? 0), 0);
   const prevValue = totalValue - dayChange;
 
-  const yieldBase = positions.filter((p) => p.value != null);
+  let realizedGain = 0;
+  for (const [ccy, amount] of [...Object.entries(view.realized), ...Object.entries(view.dividends)]) {
+    const [whole, v] = normalizeCurrency(ccy, amount);
+    if (fx[whole] != null) realizedGain += v * fx[whole];
+  }
+
+  const yieldBase = positions.filter((p) => p.value != null && !isCash(p.holding));
+  const invested = yieldBase.reduce((s, p) => s + p.value!, 0);
   const weightedDividendYield =
-    totalValue > 0 ? yieldBase.reduce((s, p) => s + (p.quote?.dividendYield ?? 0) * p.value!, 0) / totalValue : undefined;
+    invested > 0 ? yieldBase.reduce((s, p) => s + (p.quote?.dividendYield ?? 0) * p.value!, 0) / invested : undefined;
 
   return {
     positions,
     totalValue,
+    cashValue,
     totalCost,
     totalGain,
     totalGainPercent: totalCost > 0 ? (totalGain / totalCost) * 100 : undefined,
+    realizedGain,
     dayChange,
     dayChangePercent: prevValue > 0 ? (dayChange / prevValue) * 100 : undefined,
     weightedDividendYield,
     missing,
   };
+}
+
+/** Converts the pre-trade-tracking format ({ holdings: [{ shares, avgCost, note }] }) into opening buys. */
+export function migratePortfolio(raw: Portfolio & { holdings?: { symbol: string; name: string; quoteType: QuoteType; shares: number; avgCost?: number; note?: string; currency?: string }[] }, today: string): Portfolio {
+  if (Array.isArray(raw.transactions)) return { ...raw, notes: raw.notes ?? {} };
+  const notes: Record<string, string> = {};
+  const transactions: Transaction[] = (raw.holdings ?? []).map((h, i) => {
+    if (h.note) notes[h.symbol] = h.note;
+    return {
+      id: `import-${raw.id}-${i}`, type: "buy", date: today, symbol: h.symbol, name: h.name, quoteType: h.quoteType,
+      currency: h.currency ?? "", shares: h.shares, price: h.avgCost, createdAt: i,
+    };
+  });
+  const { holdings: _drop, ...rest } = raw;
+  return { ...rest, transactions, notes };
 }
 
 export interface Slice {
@@ -144,7 +249,7 @@ export function allocation(
     const { symbol, name, quoteType } = p.holding;
     const fh = fundHoldings[symbol];
     if (!lookThrough || !isFund(quoteType) || !fh || fh.holdings.length === 0) {
-      add(symbol, symbol, name, isFund(quoteType) ? "fund" : "direct", symbol, p.value);
+      add(symbol, quoteType === "CASH" ? name : symbol, name, isFund(quoteType) ? "fund" : "direct", symbol, p.value);
       continue;
     }
     for (const h of fh.holdings) add(h.symbol, h.symbol, h.name, "fund", symbol, p.value * h.weight);

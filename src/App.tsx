@@ -1,23 +1,21 @@
 import { useState } from "react";
 import type { SearchResult } from "../shared/types";
 import { ExploreView } from "./components/ExploreView";
-import { HoldingDialog } from "./components/HoldingDialog";
 import { PortfolioView } from "./components/PortfolioView";
 import { SecurityDetail } from "./components/SecurityDetail";
 import { SYNC_LABEL, SyncDialog } from "./components/SyncDialog";
+import { TradeDialog, type TradeDraft } from "./components/TradeDialog";
 import { api } from "./lib/api";
-import type { Holding } from "./lib/portfolio";
 import { usePortfolios } from "./lib/usePortfolios";
 import { useAsync } from "./lib/useAsync";
 
 type Tab = "portfolio" | "explore";
-type DialogState = { security?: SearchResult; editing?: Holding } | null;
 
 export function App() {
   const store = usePortfolios();
   const [tab, setTab] = useState<Tab>("portfolio");
   const [detail, setDetail] = useState<SearchResult | null>(null);
-  const [dialog, setDialog] = useState<DialogState>(null);
+  const [dialog, setDialog] = useState<TradeDraft | null>(null);
   const [syncOpen, setSyncOpen] = useState(false);
   const meta = useAsync("meta", api.meta);
 
@@ -45,13 +43,12 @@ export function App() {
       )}
       <main>
         {detail && (
-          <SecurityDetail security={detail} onClose={() => setDetail(null)} onAdd={(security) => setDialog({ security })} />
+          <SecurityDetail security={detail} onClose={() => setDetail(null)} onAdd={(s) => setDialog({ portfolioId: store.isAll ? store.portfolios[0].id : store.active.id, tx: { type: "buy", symbol: s.symbol, name: s.name, quoteType: s.quoteType } })} />
         )}
         {tab === "portfolio" ? (
           <PortfolioView
             store={store}
-            onAdd={() => setDialog({})}
-            onEdit={(editing) => setDialog({ editing })}
+            onTrade={setDialog}
             onOpen={(s) => { setDetail(s); window.scrollTo({ top: 0, behavior: "smooth" }); }}
           />
         ) : (
@@ -61,11 +58,12 @@ export function App() {
       <footer className="muted small">Market data from Yahoo Finance, may be delayed. Portfolios sync across your devices with your sync code.</footer>
       {syncOpen && <SyncDialog sync={store.sync} onClose={() => setSyncOpen(false)} />}
       {dialog && (
-        <HoldingDialog
+        <TradeDialog
           {...dialog}
-          portfolioName={store.active.name}
+          portfolios={store.portfolios}
           onClose={() => setDialog(null)}
-          onSave={(h) => (dialog.editing ? store.updateHolding(h.symbol, { shares: h.shares, avgCost: h.avgCost, note: h.note }) : store.addHolding(h))}
+          onSave={store.saveTransaction}
+          onDelete={store.deleteTransaction}
         />
       )}
     </>
